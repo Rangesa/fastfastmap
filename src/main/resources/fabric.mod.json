@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "fastfastmap",
+  "version": "${version}",
+  "name": "FastFastMap",
+  "description": "High-performance minimap using parallel chunk processing",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "jp.six.fastfastmap.client.FastfastmapClient"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "fastfastmap.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
