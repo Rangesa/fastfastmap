@@ -5,4 +5,4 @@ run/
 *.iml
 fabric-api-1.21.11/
 yarn-1.21.11/
-map/
+/map/
