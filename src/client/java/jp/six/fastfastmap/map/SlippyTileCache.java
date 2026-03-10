@@ -8,6 +8,7 @@ import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ChunkPos;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +33,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Environment(EnvType.CLIENT)
 public class SlippyTileCache {
 
-    private static final int MAX_GPU_TILES = 128;
+    private static final int MAX_GPU_TILES   = 128;
+    /**
+     * tilePixels の上限。1タイル = 256×256×4 = 256 KB。
+     * 512タイル ≈ 128 MB RAM。超過時は古いエントリを一括削除。
+     */
+    private static final int MAX_TILE_PIXELS = 512;
 
     /** int[] ピクセルキャッシュ（任意スレッドから安全） */
     private final ConcurrentHashMap<TileCoord, int[]> tilePixels = new ConcurrentHashMap<>();
@@ -187,6 +193,12 @@ public class SlippyTileCache {
                     int[] pixels = renderTile(coord);
                     tilePixels.put(coord, pixels);
                     pendingGpuUpdate.offer(coord); // GPU 差し替えを通知
+                    // tilePixels が上限を超えたら古いエントリを削除
+                    if (tilePixels.size() > MAX_TILE_PIXELS) {
+                        int remove = tilePixels.size() - MAX_TILE_PIXELS / 2;
+                        var it = tilePixels.keySet().iterator();
+                        while (it.hasNext() && remove-- > 0) { it.next(); it.remove(); }
+                    }
                 } finally {
                     rendering.remove(coord);
                 }
@@ -196,8 +208,11 @@ public class SlippyTileCache {
 
     private GpuTile uploadToGpu(int[] pixels) {
         NativeImage img = new NativeImage(TileCoord.TILE_PX, TileCoord.TILE_PX, false);
-        for (int i = 0; i < pixels.length; i++) {
-            img.setColorArgb(i % TileCoord.TILE_PX, i / TileCoord.TILE_PX, pixels[i]);
+        // 除算を排除してキャッシュ局所性を確保（行優先アクセス）
+        for (int y = 0; y < TileCoord.TILE_PX; y++) {
+            for (int x = 0; x < TileCoord.TILE_PX; x++) {
+                img.setColorArgb(x, y, pixels[x + y * TileCoord.TILE_PX]);
+            }
         }
         NativeImageBackedTexture tex = new NativeImageBackedTexture(() -> "fastfastmap_tile", img);
         Identifier id = Identifier.of("fastfastmap", "tile_" + texSerial.getAndIncrement());
@@ -239,10 +254,10 @@ public class SlippyTileCache {
                                 : 0xFF000000;
                         int px = basePixX + lx * ppb;
                         int pz = basePixZ + lz * ppb;
+                        // 1行分をまとめて書き込む（JVM が SIMD 最適化しやすい）
                         for (int py = 0; py < ppb; py++) {
-                            for (int ppx = 0; ppx < ppb; ppx++) {
-                                pixels[(px + ppx) + (pz + py) * TileCoord.TILE_PX] = color;
-                            }
+                            int rowStart = px + (pz + py) * TileCoord.TILE_PX;
+                            Arrays.fill(pixels, rowStart, rowStart + ppb, color);
                         }
                     }
                 }
