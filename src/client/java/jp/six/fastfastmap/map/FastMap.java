@@ -79,6 +79,13 @@ public class FastMap {
     private volatile long  anchorChunkPos = ChunkPos.toLong(0, 0);
     private volatile float playerYaw      = 0f;
 
+    /** 現在セッションのキャッシュキー（null = セッション外）。 */
+    private String currentCacheKey = null;
+    /** キャッシュが変更されたかどうか（自動保存の判定用）。 */
+    private final AtomicBoolean cacheModified = new AtomicBoolean(false);
+    private static final int AUTO_SAVE_TICKS = 1200; // 60秒 @ 20TPS
+    private int autoSaveTicks = 0;
+
     private FastMap() {}
 
     // ---- メインスレッドから呼ばれる ----
@@ -109,6 +116,7 @@ public class FastMap {
             if (worldGeneration.get() != generation) return;
             colorCache.put(key, colors);
             pendingUploads.offer(key);
+            cacheModified.set(true);
             // Slippy Mapタイルを無効化（colorCacheへのput後に実行）
             SlippyTileCache tc = tileCache;
             if (tc != null) tc.invalidateChunk(cx, cz);
@@ -125,6 +133,12 @@ public class FastMap {
 
     public void onTick(MinecraftClient client) {
         if (texture == null && client.world != null) {
+            // ディスクキャッシュを読み込む（ワールド/サーバー別）
+            currentCacheKey = MapCacheStore.getCacheKey(client);
+            MapCacheStore.load(currentCacheKey, colorCache);
+            cacheModified.set(false);
+            autoSaveTicks = 0;
+
             texture = new MinimapTexture();
             renderer = new MinimapRenderer(texture);
             tileCache = new SlippyTileCache(colorCache, scanExecutor);
@@ -139,6 +153,13 @@ public class FastMap {
 
         if (texture != null && client.world == null) {
             worldGeneration.incrementAndGet(); // 飛行中スキャンタスクの結果を無効化
+            // ディスクキャッシュに保存（変更があった場合のみ）
+            if (currentCacheKey != null && cacheModified.get()) {
+                String key = currentCacheKey;
+                ConcurrentHashMap<Long, int[]> snapshot = new ConcurrentHashMap<>(colorCache);
+                scanExecutor.submit(() -> MapCacheStore.save(key, snapshot));
+            }
+            currentCacheKey = null;
             texture.close();
             texture = null;
             renderer = null;
@@ -148,6 +169,16 @@ public class FastMap {
             lastScanTime.clear();
             pendingUploads.clear();
             pendingClear.set(false);
+        }
+
+        // 定期自動保存（60秒ごと、変更があった場合のみ）
+        if (currentCacheKey != null && ++autoSaveTicks >= AUTO_SAVE_TICKS) {
+            autoSaveTicks = 0;
+            if (cacheModified.compareAndSet(true, false)) {
+                String key = currentCacheKey;
+                ConcurrentHashMap<Long, int[]> snapshot = new ConcurrentHashMap<>(colorCache);
+                scanExecutor.submit(() -> MapCacheStore.save(key, snapshot));
+            }
         }
 
         if (client.player != null) {
