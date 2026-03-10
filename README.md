@@ -97,3 +97,14 @@ Minecraft 1.21.11 向け Fabric クライアント Mod。軽量・高速なミ�
 - Minecraft 1.21.11
 - Fabric Loader 0.18.4+
 - Fabric API 0.141.3+1.21.11
+
+## 他Modとの互換性
+
+| Mod | 互換性 | 備考 |
+|-----|--------|------|
+| **Bobby** | ✅ 推奨 | Bobby がキャッシュから復元したチャンクも CHUNK_LOAD イベント経由でスキャンされ、マップに表示される。Bobby（ブロックデータ）と fastfastmap（色データ）は独立したディスクキャッシュを持ち、相互補完する |
+| **C2ME** | ✅ 互換 | チャンク生成並列化のみ。当 Mod の Mixin は `handleBlockUpdate` のみで衝突なし |
+| **Lithium** | ✅ 互換 | サーバー側最適化。API 変更なし |
+| **ModMenu** | ✅ 対応 | ModMenu のリストに表示される |
+| **ScalableLux** | ✅ 互換 | ライティングエンジン置き換えのみ。Heightmap/BlockState は影響を受けない |
+| **Sodium** | ✅ 互換 | チャンクレンダリングのみ置き換え。GUI 描画は標準 DrawContext を使用 |

@@ -11,6 +11,9 @@
   "entrypoints": {
     "client": [
       "jp.six.fastfastmap.client.FastfastmapClient"
+    ],
+    "modmenu": [
+      "jp.six.fastfastmap.client.FastfastmapModMenu"
     ]
   },
   "mixins": [
@@ -23,5 +26,13 @@
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",
     "minecraft": "${minecraft_version}"
+  },
+  "suggests": {
+    "modmenu": "*",
+    "bobby": "*",
+    "c2me": "*",
+    "lithium": "*",
+    "sodium": "*",
+    "scalablelux": "*"
   }
 }
