@@ -124,11 +124,11 @@ public class FastMap {
     }
 
     public void onChunkUnload(ChunkPos pos) {
-        long key = pos.toLong();
-        colorCache.remove(key);
-        lastScanTime.remove(key);
-        SlippyTileCache tc = tileCache;
-        if (tc != null) tc.invalidateChunk(pos.x, pos.z);
+        // colorCache は削除しない。
+        // アンロードされたチャンクの色データを保持し続けることで、
+        // 全画面マップのズームアウト表示やミニマップ再アンカー時の再描画に使える。
+        // ワールド離脱時に colorCache ごとクリアされる。
+        lastScanTime.remove(pos.toLong());
     }
 
     public void onTick(MinecraftClient client) {
