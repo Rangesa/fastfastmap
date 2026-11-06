@@ -1,3 +1,5 @@
+> Minecraft 26.2 までの版別ビルド・導入方法: [対応バージョン](MINECRAFT_VERSIONS.md)。
+
 # FastFastMap
 
 Minecraft 1.21.11 向け Fabric クライアント Mod。軽量・高速なミニマップと全画面マップを提供します。
